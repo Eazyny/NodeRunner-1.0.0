@@ -1,0 +1,1 @@
+guardian-cli-win.exe guardian run (add the wallet holding nodes private key here, please do NOT use a wallet holding valuables use delegate.xyz if the nodes are in a vault) --loop-interval-ms 3600000

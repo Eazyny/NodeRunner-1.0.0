@@ -1,0 +1,1 @@
+guardian-cli-win.exe guardian claim-rewards (add the wallet holding nodes private key here, please do NOT use a wallet holding valuables use delegate.xyz if the nodes are in a vault) --owned-keys --approved-keys

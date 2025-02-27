@@ -1,0 +1,82 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:FluentAvalonia.UI.Controls;assembly=FluentAvalonia"
+        xmlns:fa="clr-namespace:FluentAvalonia.UI.Controls;assembly=FluentAvalonia"
+        x:Class="NodeRunner.MainWindow"
+        Title="NodeRunner"
+        Width="800" Height="310"
+        Icon="/Assets/icon.ico">
+    
+    <!-- Main Grid -->
+    <Grid>
+        <!-- Background Image (Resizes Properly) -->
+        <Image Source="avares://NodeRunner/Assets/hytopia.jpg"
+               Stretch="Fill"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Stretch"
+               ZIndex="-1"/>
+        
+        <!-- Transparent Overlay (Softens Image) -->
+        <Border Background="#AA000000" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ZIndex="-1"/> 
+
+        <!-- Main Navigation UI -->
+        <ui:NavigationView PaneDisplayMode="Left" OpenPaneLength="200" IsPaneToggleButtonVisible="False" IsSettingsVisible="False">
+            <ui:NavigationView.PaneHeader>
+                <TextBlock Text="NodeRunner" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="24" FontWeight="Bold" Margin="0,20,0,20"/>
+            </ui:NavigationView.PaneHeader>
+
+            <ui:NavigationView.MenuItems>
+                <ui:NavigationViewItem>
+                    <Button x:Name="HomeButton" Click="HomeButton_Click" HorizontalAlignment="Center" Background="#DD1C1C1C"> 
+                        <StackPanel Orientation="Horizontal">
+                            <fa:SymbolIcon Symbol="Home" />
+                            <TextBlock x:Name="HomeButtonText" Text="Run Nodes" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </ui:NavigationViewItem>
+                <ui:NavigationViewItem>
+                    <Button Click="NodesButton_Click" HorizontalAlignment="Center" Background="#DD1C1C1C">
+                        <StackPanel Orientation="Horizontal">
+                            <fa:SymbolIcon Symbol="Globe" />
+                            <TextBlock Text="Check Balance" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </ui:NavigationViewItem>
+                <ui:NavigationViewItem>
+                    <Button Click="BalancesButton_Click" HorizontalAlignment="Center" Background="#DD1C1C1C">
+                        <StackPanel Orientation="Horizontal">
+                            <fa:SymbolIcon Symbol="Calculator" />
+                            <TextBlock Text="Claim" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </ui:NavigationViewItem>
+                <ui:NavigationViewItem>
+                    <Button Content="Select Scripts Folder" Click="SelectScriptsFolder_Click" HorizontalAlignment="Center" Background="#DD1C1C1C"/>
+                </ui:NavigationViewItem>
+                <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+                    <TextBlock Text="Version: 1.0.0, © 2024" Margin="0,10,0,0" Foreground="LightGray" FontSize="12" HorizontalAlignment="Center"/>
+                    <TextBlock Text="By BlockchainEazy" Margin="0,10,0,0" Foreground="LightGray" FontSize="12" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </ui:NavigationView.MenuItems>
+
+            <ui:NavigationView.Content>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- Pending Balance Text -->
+                    <TextBox Grid.Row="0" x:Name="PendingBalance" HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="10"
+                             IsReadOnly="True" Text="Pending Balance: 0" Background="#CC1C1C1C" Foreground="White"/>
+
+                    <!-- Output Log Area -->
+                    <ScrollViewer Grid.Row="1" x:Name="ResultScreenScrollViewer" VerticalScrollBarVisibility="Auto">
+                        <TextBox x:Name="ResultScreen" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="10,0,10,10"
+                                 IsReadOnly="True" Background="#CC1C1C1C" Foreground="White" BorderThickness="0"/>
+                    </ScrollViewer>
+                </Grid>
+            </ui:NavigationView.Content>
+        </ui:NavigationView>
+    </Grid>
+</Window>
