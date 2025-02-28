@@ -2,8 +2,7 @@
 Version: 1.0.0
 Author: BlockchainEazy
 
-![NodeRunner_M9sqWVhY9t](https://github.com/user-attachments/assets/583c4c6a-2fcc-4371-bf7c-55657dc64f2d)
-
+![NodeRunner_M15dI4Jz4m](https://github.com/user-attachments/assets/c55ea0bf-9588-4bc2-b62c-5c6e3ae69513)
 
 ## ⚠️ Disclaimer – Not Affiliated with Hytopia
 *This software is NOT created, endorsed, or affiliated with Hytopia in any way.
