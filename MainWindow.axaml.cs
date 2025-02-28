@@ -184,8 +184,6 @@ namespace NodeRunner
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     ResultScreen.Text += "\n" + message;
-
-                    // Scroll to bottom
                     _resultScreenScrollViewer?.ScrollToEnd();
                 });
             }
@@ -197,10 +195,15 @@ namespace NodeRunner
                 return string.Empty;
 
             // Remove milliseconds from timestamps
-            return Regex.Replace(logMessage, @"\[\d{2}:\d{2}:\d{2}\.\d{3}\]", match =>
+            logMessage = Regex.Replace(logMessage, @"\[\d{2}:\d{2}:\d{2}\.\d{3}\]", match =>
             {
-                return match.Value.Substring(0, match.Value.Length - 4) + "]"; // Trim the last 4 characters (".123")
+                return match.Value.Substring(0, match.Value.Length - 4) + "]"; // Trims milliseconds
             });
+
+            // Remove ANSI color codes (e.g., \e[32mINFO\e[39m)
+            logMessage = Regex.Replace(logMessage, @"\e\[[0-9;]*m", string.Empty);
+
+            return logMessage;
         }
 
         private void UpdatePendingBalance(string output)
