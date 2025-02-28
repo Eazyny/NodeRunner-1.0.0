@@ -1,21 +1,68 @@
-MIT License
+# **End User License Agreement (EULA) for NodeRunner**  
+**Effective Date:** January 1, 2025  
+**Last Updated:** January 1, 2025  
+**Software Name:** NodeRunner  
+**Owner:** BlockchainEazy  
+**Company Name:** BlockchainEazy  
 
-Copyright (c) 2025 Blockchaineazy
+---
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## **1. Introduction**  
+This End User License Agreement ("EULA") is a legal agreement between you (the "User") and **BlockchainEazy** ("Licensor") regarding the use of **NodeRunner** software. By installing, copying, or otherwise using NodeRunner, you agree to be bound by the terms of this agreement. If you do not agree to these terms, do not install or use the software.  
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+---
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+## **2. License Grant**  
+The Licensor grants you a **non-exclusive, non-transferable, revocable, personal** license to use NodeRunner under the following conditions:  
+- The software is provided **free of charge** for **personal use only** on your local machine.  
+- You **may not** use NodeRunner for **commercial purposes**, including but not limited to selling, renting, leasing, offering paid services, or incorporating it into paid products.  
+- You **may not** modify, alter, decompile, reverse-engineer, or create derivative works based on NodeRunner.  
+- You **may not** redistribute, resell, sublicense, or share the software in any form without prior written permission from BlockchainEazy.  
+- The software must be used **only in its original, unmodified form** as distributed by BlockchainEazy.  
+
+---
+
+## **3. Ownership and Intellectual Property**  
+- **NodeRunner**, including but not limited to its code, branding, and design, is the exclusive property of **BlockchainEazy**.  
+- This agreement **does not** transfer any ownership rights to the User.  
+- All copyrights, trademarks, and intellectual property rights in NodeRunner remain with BlockchainEazy.  
+
+---
+
+## **4. Restrictions**  
+You agree **not** to:  
+- Modify, adapt, translate, or create derivative works of NodeRunner.  
+- Decompile, disassemble, or reverse-engineer the software.  
+- Remove or alter any copyright, trademark, or other proprietary notices in the software.  
+- Use the software in any way that violates applicable laws or regulations.  
+- Use the software for **any commercial purpose**, including selling, distributing, or monetizing it directly or indirectly.  
+
+---
+
+## **5. Disclaimer of Warranties**  
+- **NodeRunner is provided "as-is" without any express or implied warranties.** BlockchainEazy makes no guarantees regarding its performance, stability, or suitability for any purpose.  
+- The Licensor is **not responsible for any damages, data loss, or issues arising from the use of NodeRunner.**  
+
+---
+
+## **6. Limitation of Liability**  
+In no event shall BlockchainEazy be liable for:  
+- Any indirect, incidental, special, or consequential damages resulting from the use or inability to use NodeRunner.  
+- Any loss of data, profits, or business arising from the use of the software.  
+
+---
+
+## **7. Termination**  
+This license is effective until terminated. BlockchainEazy reserves the right to revoke your license if you fail to comply with the terms of this EULA. Upon termination, you must delete all copies of NodeRunner from your systems.  
+
+---
+
+## **8. Governing Law**  
+This agreement shall be governed and interpreted in accordance with the laws of the **State of New York, United States**. Any disputes arising from this agreement shall be resolved in the courts of **New York State**.  
+
+---
+
+## **9. Contact Information**  
+For any questions or concerns about this EULA, please contact:  
+📧 **Email:** [eazy@blockchaineazy.com](mailto:eazy@blockchaineazy.com)  
+🌐 **Website:** [blockchaineazy.box](https://blockchaineazy.box) 
