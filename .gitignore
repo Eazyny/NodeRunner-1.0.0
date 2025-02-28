@@ -1,0 +1,7 @@
+# Ignore build output folders
+bin/
+obj/
+.vs/
+scripts/validation-engine/
+scripts/guardian-cli-win.exe
+COMMIT_EDITMSG.wsp
