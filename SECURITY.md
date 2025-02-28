@@ -16,7 +16,7 @@ If you discover a security vulnerability in this project, **please report it res
 Do **not** disclose security issues publicly without first contacting the project maintainers.
 
 ### How to Report:
-- **Email:** [your_email_here@example.com]
+- **Email:** [eazy@blockchaineazy.com]
 - **Open an Issue** on GitHub *(avoid including sensitive details).*
 - If necessary, **submit a Pull Request** with a proposed fix.
 
