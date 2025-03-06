@@ -19,10 +19,16 @@ namespace NodeRunner
         private TextBlock? _statusText;
         private ScrollViewer? _resultScreenScrollViewer;
 
+        // Additional fields for wallet and node info
+        private string _walletLast4 = "";
+        private int _nodeCount = 0;
+        private decimal _currentBalance = 0;
+
         public MainWindow()
         {
             InitializeComponent();
-            _scriptService = new ScriptService(AppendToLog, UpdatePendingBalance, UpdateStatus, RestartHomeProcessAsync);
+            // Pass the UpdateWalletInfo delegate to ScriptService.
+            _scriptService = new ScriptService(AppendToLog, UpdatePendingBalance, UpdateStatus, RestartHomeProcessAsync, UpdateWalletInfo);
         }
 
         private void InitializeComponent()
@@ -59,6 +65,7 @@ namespace NodeRunner
                 else
                 {
                     AppendToLog("\nStarting nodes...");
+                    // Use the long-running script method for start.bat.
                     await _scriptService.StartHomeProcessAsync(_scriptsFolderPath, "start.bat");
                     HomeButtonText.Text = "Stop Nodes";
                 }
@@ -75,7 +82,8 @@ namespace NodeRunner
             try
             {
                 _scriptService.ResetPendingBalance();
-                PendingBalance.Text = "Pending Balance: 0";
+                _currentBalance = 0;
+                PendingBalance.Text = $"Pending Balance: 0\nWallet: {_walletLast4}\nNodes: {_nodeCount}";
                 AppendToLog("Checking Balance...");
                 await _scriptService.RunScriptAsync(_scriptsFolderPath, "check.bat");
             }
@@ -91,7 +99,8 @@ namespace NodeRunner
             {
                 _scriptService.ResetPendingBalance();
                 await _scriptService.RunScriptAsync(_scriptsFolderPath, "claim.bat");
-                PendingBalance.Text = "Pending Balance: 0";
+                _currentBalance = 0;
+                PendingBalance.Text = $"Pending Balance: 0\nWallet: {_walletLast4}\nNodes: {_nodeCount}";
             }
             catch (Exception ex)
             {
@@ -111,11 +120,24 @@ namespace NodeRunner
             }
         }
 
+        // Update the pending balance (for non-sensitive log lines)
         private void UpdatePendingBalance(decimal balance)
         {
+            _currentBalance = balance;
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
-                PendingBalance.Text = $"Pending Balance: {balance:F0}";
+                PendingBalance.Text = $"Pending Balance: {_currentBalance:F0}\nWallet: {_walletLast4}\nNodes: {_nodeCount}";
+            });
+        }
+
+        // Update wallet and node info when a guardian log line is detected
+        private void UpdateWalletInfo(string walletLast4, int nodeCount)
+        {
+            _walletLast4 = walletLast4;
+            _nodeCount = nodeCount;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                PendingBalance.Text = $"Pending Balance: {_currentBalance:F0}\nWallet: {_walletLast4}\nNodes: {_nodeCount}";
             });
         }
 
@@ -162,22 +184,30 @@ namespace NodeRunner
             private readonly Action<decimal> _updateBalanceAction;
             private readonly Action<bool> _updateStatusAction;
             private readonly Func<Task> _restartHomeProcessAsync;
+            private readonly Action<string, int> _updateWalletInfoAction;
 
             public bool IsHomeProcessRunning => _homeProcess != null && !_homeProcess.HasExited;
 
-            public ScriptService(Action<string?> logAction, Action<decimal> updateBalanceAction, Action<bool> updateStatusAction, Func<Task> restartHomeProcessAsync)
+            public ScriptService(
+                Action<string?> logAction,
+                Action<decimal> updateBalanceAction,
+                Action<bool> updateStatusAction,
+                Func<Task> restartHomeProcessAsync,
+                Action<string, int> updateWalletInfoAction)
             {
                 _logAction = logAction;
                 _updateBalanceAction = updateBalanceAction;
                 _updateStatusAction = updateStatusAction;
                 _restartHomeProcessAsync = restartHomeProcessAsync;
+                _updateWalletInfoAction = updateWalletInfoAction;
             }
 
             public async Task StartHomeProcessAsync(string scriptsFolderPath, string scriptFileName)
             {
                 try
                 {
-                    _homeProcess = await StartScriptAsync(scriptsFolderPath, scriptFileName);
+                    // Use the long-running version for start.bat.
+                    _homeProcess = await StartLongRunningScriptAsync(scriptsFolderPath, scriptFileName);
                     _updateStatusAction(true);
                 }
                 catch (Exception ex)
@@ -199,7 +229,6 @@ namespace NodeRunner
                             KillProcessTree(_homeProcess);
                             _homeProcess.WaitForExit();
                         });
-
                         _homeProcess = null;
                         _updateStatusAction(false);
                     }
@@ -237,6 +266,20 @@ namespace NodeRunner
                             if (!string.IsNullOrWhiteSpace(args.Data))
                             {
                                 var cleanLog = CleanLog(args.Data);
+                                // For one-shot scripts, check for guardian info (delegated or owned node keys).
+                                if (cleanLog.Contains("Running guardian for owner") &&
+                                    (cleanLog.Contains("delegated node keys") || cleanLog.Contains("owned node keys")))
+                                {
+                                    var match = Regex.Match(cleanLog, @"owner \((0x[a-fA-F0-9]+)\) with (\d+) (?:delegated|owned) node keys");
+                                    if (match.Success)
+                                    {
+                                        var wallet = match.Groups[1].Value;
+                                        var last4 = wallet.Length >= 4 ? wallet.Substring(wallet.Length - 4) : wallet;
+                                        int nodeCount = int.Parse(match.Groups[2].Value);
+                                        _updateWalletInfoAction(last4, nodeCount);
+                                        return;
+                                    }
+                                }
                                 _logAction(cleanLog);
                                 UpdatePendingBalance(cleanLog);
 
@@ -248,8 +291,17 @@ namespace NodeRunner
                             }
                         };
 
+                        process.ErrorDataReceived += (sender, args) =>
+                        {
+                            if (!string.IsNullOrWhiteSpace(args.Data))
+                            {
+                                _logAction("\nERROR: " + CleanLog(args.Data));
+                            }
+                        };
+
                         process.Start();
                         process.BeginOutputReadLine();
+                        process.BeginErrorReadLine();
                         process.WaitForExit();
                     });
                 }
@@ -263,6 +315,76 @@ namespace NodeRunner
             public void ResetPendingBalance()
             {
                 _pendingBalance = 0M;
+            }
+
+            /// <summary>
+            /// Starts a long-running script (e.g. start.bat) with output filtering.
+            /// Does not wait for the process to exit.
+            /// </summary>
+            private async Task<Process> StartLongRunningScriptAsync(string scriptsFolderPath, string scriptFileName)
+            {
+                var processInfo = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c \"{scriptsFolderPath}\\{scriptFileName}\"",
+                    WorkingDirectory = scriptsFolderPath,
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                var process = new Process { StartInfo = processInfo };
+
+                process.OutputDataReceived += (sender, args) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(args.Data))
+                    {
+                        var cleanLog = CleanLog(args.Data);
+                        // Filter out sensitive guardian info.
+                        if (cleanLog.Contains("Running guardian for owner") &&
+                           (cleanLog.Contains("delegated node keys") || cleanLog.Contains("owned node keys")))
+                        {
+                            var match = Regex.Match(cleanLog, @"owner \((0x[a-fA-F0-9]+)\) with (\d+) (?:delegated|owned) node keys");
+                            if (match.Success)
+                            {
+                                var wallet = match.Groups[1].Value;
+                                var last4 = wallet.Length >= 4 ? wallet.Substring(wallet.Length - 4) : wallet;
+                                int nodeCount = int.Parse(match.Groups[2].Value);
+                                _updateWalletInfoAction(last4, nodeCount);
+                                // Skip logging this sensitive line.
+                                return;
+                            }
+                        }
+                        // When the sleep line is encountered, trigger auto-check.
+                        if (cleanLog.Contains("Sleeping for") && cleanLog.Contains("before running guardian again"))
+                        {
+                            // Reset balance so we don't sum to the previous total.
+                            ResetPendingBalance();
+                            // Trigger "Check Balance" by running check.bat.
+                            Task.Run(async () =>
+                            {
+                                await RunScriptAsync(scriptsFolderPath, "check.bat");
+                            });
+                        }
+                        _logAction(cleanLog);
+                    }
+                };
+
+                process.ErrorDataReceived += (sender, args) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(args.Data))
+                    {
+                        _logAction("\nERROR: " + CleanLog(args.Data));
+                    }
+                };
+
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                await Task.Delay(500);
+                return process;
             }
 
             private async Task<Process> StartScriptAsync(string scriptsFolderPath, string scriptFileName)
@@ -291,13 +413,14 @@ namespace NodeRunner
                 return process;
             }
 
+            // Parses balance output and updates the pending balance.
             private void UpdatePendingBalance(string output)
             {
                 var match = Regex.Match(output, @"Rewards to claim for NodeKey \(\d+\): (\d+)");
                 if (match.Success && decimal.TryParse(match.Groups[1].Value, out var rawBalance))
                 {
                     var correctedBalance = Math.Floor(rawBalance / 1_000_000_000_000_000_000M);
-                    _pendingBalance += correctedBalance; // Accumulate balance for each node
+                    _pendingBalance += correctedBalance;
                     _updateBalanceAction(_pendingBalance);
                 }
             }
@@ -314,14 +437,14 @@ namespace NodeRunner
                 if (string.IsNullOrWhiteSpace(logMessage))
                     return string.Empty;
 
-                // Remove lines that start with C:\
-                if (Regex.IsMatch(logMessage, @"^C:\\"))
+                // Omit any lines that start with "C:\"
+                if (Regex.IsMatch(logMessage, @"^C:\\")) 
                     return string.Empty;
 
-                // Remove milliseconds from timestamps
+                // Remove milliseconds from timestamps (e.g., convert "[22:09:02.123]" to "[22:09:02.]")
                 logMessage = Regex.Replace(logMessage, @"\[\d{2}:\d{2}:\d{2}\.\d{3}\]", match =>
                 {
-                    return match.Value.Substring(0, match.Value.Length - 4) + "]"; // Trims milliseconds
+                    return match.Value.Substring(0, match.Value.Length - 4) + "]";
                 });
 
                 // Remove ANSI color codes (e.g., \e[32mINFO\e[39m)
