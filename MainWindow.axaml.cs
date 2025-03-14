@@ -65,7 +65,6 @@ namespace NodeRunner
                 else
                 {
                     AppendToLog("\nStarting nodes...");
-                    // Use the long-running script method for start.bat.
                     await _scriptService.StartHomeProcessAsync(_scriptsFolderPath, "start.bat");
                     HomeButtonText.Text = "Stop Nodes";
                 }
@@ -120,7 +119,6 @@ namespace NodeRunner
             }
         }
 
-        // Update the pending balance (for non-sensitive log lines)
         private void UpdatePendingBalance(decimal balance)
         {
             _currentBalance = balance;
@@ -130,7 +128,6 @@ namespace NodeRunner
             });
         }
 
-        // Update wallet and node info when a guardian log line is detected
         private void UpdateWalletInfo(string walletLast4, int nodeCount)
         {
             _walletLast4 = walletLast4;
@@ -186,6 +183,9 @@ namespace NodeRunner
             private readonly Func<Task> _restartHomeProcessAsync;
             private readonly Action<string, int> _updateWalletInfoAction;
 
+            // Flag to ensure only one restart is triggered per error.
+            private bool _isRestarting = false;
+
             public bool IsHomeProcessRunning => _homeProcess != null && !_homeProcess.HasExited;
 
             public ScriptService(
@@ -206,7 +206,6 @@ namespace NodeRunner
             {
                 try
                 {
-                    // Use the long-running version for start.bat.
                     _homeProcess = await StartLongRunningScriptAsync(scriptsFolderPath, scriptFileName);
                     _updateStatusAction(true);
                 }
@@ -242,7 +241,8 @@ namespace NodeRunner
 
             public async Task RunScriptAsync(string? scriptsFolderPath, string scriptFileName)
             {
-                if (scriptsFolderPath == null) throw new ArgumentNullException(nameof(scriptsFolderPath));
+                if (scriptsFolderPath == null)
+                    throw new ArgumentNullException(nameof(scriptsFolderPath));
 
                 try
                 {
@@ -266,7 +266,6 @@ namespace NodeRunner
                             if (!string.IsNullOrWhiteSpace(args.Data))
                             {
                                 var cleanLog = CleanLog(args.Data);
-                                // For one-shot scripts, check for guardian info (delegated or owned node keys).
                                 if (cleanLog.Contains("Running guardian for owner") &&
                                     (cleanLog.Contains("delegated node keys") || cleanLog.Contains("owned node keys")))
                                 {
@@ -282,11 +281,11 @@ namespace NodeRunner
                                 }
                                 _logAction(cleanLog);
                                 UpdatePendingBalance(cleanLog);
-
                                 if (IsCriticalError(cleanLog))
                                 {
-                                    _logAction("\nERROR: Critical error detected. Attempting to restart nodes...");
-                                    _restartHomeProcessAsync().Wait();
+                                    _logAction("\nERROR: Critical error detected. Restarting nodes...");
+                                    TriggerRestart();
+                                    return;
                                 }
                             }
                         };
@@ -295,7 +294,13 @@ namespace NodeRunner
                         {
                             if (!string.IsNullOrWhiteSpace(args.Data))
                             {
-                                _logAction("\nERROR: " + CleanLog(args.Data));
+                                var cleanLog = CleanLog(args.Data);
+                                _logAction("\nERROR: " + cleanLog);
+                                if (IsCriticalError(cleanLog))
+                                {
+                                    _logAction("\nERROR: Critical error detected in error stream. Restarting nodes...");
+                                    TriggerRestart();
+                                }
                             }
                         };
 
@@ -341,7 +346,6 @@ namespace NodeRunner
                     if (!string.IsNullOrWhiteSpace(args.Data))
                     {
                         var cleanLog = CleanLog(args.Data);
-                        // Filter out sensitive guardian info.
                         if (cleanLog.Contains("Running guardian for owner") &&
                            (cleanLog.Contains("delegated node keys") || cleanLog.Contains("owned node keys")))
                         {
@@ -352,20 +356,22 @@ namespace NodeRunner
                                 var last4 = wallet.Length >= 4 ? wallet.Substring(wallet.Length - 4) : wallet;
                                 int nodeCount = int.Parse(match.Groups[2].Value);
                                 _updateWalletInfoAction(last4, nodeCount);
-                                // Skip logging this sensitive line.
                                 return;
                             }
                         }
-                        // When the sleep line is encountered, trigger auto-check.
                         if (cleanLog.Contains("Sleeping for") && cleanLog.Contains("before running guardian again"))
                         {
-                            // Reset balance so we don't sum to the previous total.
                             ResetPendingBalance();
-                            // Trigger "Check Balance" by running check.bat.
                             Task.Run(async () =>
                             {
                                 await RunScriptAsync(scriptsFolderPath, "check.bat");
                             });
+                        }
+                        if (IsCriticalError(cleanLog))
+                        {
+                            _logAction("\nERROR: Critical error detected. Restarting nodes...");
+                            TriggerRestart();
+                            return;
                         }
                         _logAction(cleanLog);
                     }
@@ -375,7 +381,13 @@ namespace NodeRunner
                 {
                     if (!string.IsNullOrWhiteSpace(args.Data))
                     {
-                        _logAction("\nERROR: " + CleanLog(args.Data));
+                        var cleanLog = CleanLog(args.Data);
+                        _logAction("\nERROR: " + cleanLog);
+                        if (IsCriticalError(cleanLog))
+                        {
+                            _logAction("\nERROR: Critical error detected in error stream. Restarting nodes...");
+                            TriggerRestart();
+                        }
                     }
                 };
 
@@ -429,7 +441,8 @@ namespace NodeRunner
             {
                 return logMessage.Contains("unexpected call exception") ||
                        logMessage.Contains("Transaction reverted without a reason string") ||
-                       logMessage.Contains("node:internal/process/task_queues");
+                       logMessage.Contains("node:internal/process/task_queues") ||
+                       logMessage.Contains("UNPREDICTABLE_GAS_LIMIT");
             }
 
             private static string CleanLog(string? logMessage)
@@ -437,18 +450,34 @@ namespace NodeRunner
                 if (string.IsNullOrWhiteSpace(logMessage))
                     return string.Empty;
 
-                // Omit any lines that start with "C:\"
                 if (Regex.IsMatch(logMessage, @"^C:\\")) 
                     return string.Empty;
 
-                // Remove milliseconds from timestamps (e.g., convert "[22:09:02.123]" to "[22:09:02.]")
                 logMessage = Regex.Replace(logMessage, @"\[\d{2}:\d{2}:\d{2}\.\d{3}\]", match =>
                 {
                     return match.Value.Substring(0, match.Value.Length - 4) + "]";
                 });
 
-                // Remove ANSI color codes (e.g., \e[32mINFO\e[39m)
                 return Regex.Replace(logMessage, @"\e\[[0-9;]*m", string.Empty);
+            }
+
+            private void TriggerRestart()
+            {
+                if (!_isRestarting)
+                {
+                    _isRestarting = true;
+                    // Immediately stop nodes.
+                    if (_homeProcess != null && !_homeProcess.HasExited)
+                    {
+                        KillProcessTree(_homeProcess);
+                    }
+                    // Trigger restart asynchronously.
+                    Task.Run(async () =>
+                    {
+                        await _restartHomeProcessAsync();
+                        _isRestarting = false;
+                    });
+                }
             }
 
             private static void KillProcessTree(Process process)

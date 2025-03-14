@@ -107,7 +107,7 @@
                         <TextBlock Text="BlockchainEazy © 2025" 
                                    Foreground="Gray" 
                                    HorizontalAlignment="Center"/>
-                        <TextBlock Text="V1.0.1" 
+                        <TextBlock Text="V1.0.2" 
                                    Foreground="Gray" 
                                    HorizontalAlignment="Center" 
                                    Margin="0,2,0,0"/>
