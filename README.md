@@ -1,99 +1,198 @@
-# NodeRunner - Hytopia Node Manager
-Version: 1.0.0
+# NodeRunner - Hytopia Node Manager  
+Version: 1.0.4  
 Author: BlockchainEazy
 
 ![NodeRunner_M15dI4Jz4m](https://github.com/user-attachments/assets/c55ea0bf-9588-4bc2-b62c-5c6e3ae69513)
 
 ## ⚠️ Disclaimer – Not Affiliated with Hytopia
-*This software is NOT created, endorsed, or affiliated with Hytopia in any way.
+*This software is NOT created, endorsed, or affiliated with Hytopia in any way.  
 It is an independent tool developed by BlockchainEazy to help users easily manage and run their nodes on their own machines.*
+
+---
 
 ## 📥 Installation & Setup
 
-1️⃣ Clone the Repository
+### 1️⃣ Clone the Repository
 
 Open a terminal or PowerShell and run:
 
-*git clone https://github.com/Eazyny/NodeRunner-1.0.0.git
-cd NodeRunner-1.0.0*
+```bash
+git clone https://github.com/Eazyny/NodeRunner-1.0.0.git
+cd NodeRunner-1.0.0
+```
 
-2️⃣ Install Dependencies
+---
 
-Make sure you have .NET 8 SDK installed.
+### 2️⃣ Install Dependencies
+
+Make sure you have [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download) installed.
 
 Then, restore dependencies by running:
 
-*dotnet restore*
+```bash
+dotnet restore
+```
 
-3️⃣ Download Required Files
+---
+
+### 3️⃣ Download Required Files
 
 The validation engine and guardian executable are required to run the nodes.
 
-Download them from official Hychain GitHub:
+Download them from the official Hychain GitHub:  
 [🔗 HYCHAIN Guardian Node Software](https://github.com/HYCHAIN/guardian-node-software/releases/tag/0.0.1)
 
-Add the following files to the scripts folder:
+Place the following into the `scripts` folder:
 
-guardian-cli-win.exe
+- `guardian-cli-win.exe` *(Windows users)*
+- `guardian-cli-linux` *(Linux users — if available)*
+- `validation-engine/` folder *(containing jit + replay.wasm)*
 
-validation-engine (folder containing jit and replay.wasm)
-
+---
 
 ## ⚙️ Configuring the Scripts
-Inside the scripts folder, there are three .bat files that must be configured before using the app.
 
-1️⃣ **check.bat**: Used to check pending rewards for your nodes.
+Inside the `scripts` folder, you'll find three script files that must be configured before use:
 
-Modify the file and replace (add node numbers here) with your node IDs (comma-separated, no spaces).
+### 1️⃣ `check.bat` / `check.sh` – Check rewards
 
+```bash
 guardian-cli-win.exe guardian reward-to-claim <node_number_1,node_number_2,...>
+```
 
+Modify the file and replace the node list with your own node IDs.
 
-2️⃣ **claim.bat**: Used to claim node rewards.
+---
 
-Replace <your_private_key> with the private key of the wallet managing the nodes.
+### 2️⃣ `claim.bat` / `claim.sh` – Claim rewards
 
+```bash
 guardian-cli-win.exe guardian claim-rewards <your_private_key> --owned-keys --approved-keys
+```
 
-⚠️ DO NOT use a wallet that holds valuable assets. Use Delegate.xyz if your nodes are in a vault.
+Replace `<your_private_key>` with the wallet private key managing your nodes.
 
+⚠️ **Do not use a wallet with funds. Use a cold wallet or Delegate.xyz setup.**
 
-3️⃣ **start.bat**: Starts running the nodes.
+---
 
-Replace <your_private_key> with your node wallet's private key.
+### 3️⃣ `start.bat` / `start.sh` – Start nodes
 
+```bash
 guardian-cli-win.exe guardian run <your_private_key> --loop-interval-ms 3600000
+```
 
-⚠️ DO NOT use a wallet that holds valuable assets.
+Again, replace `<your_private_key>` with your node wallet key.
 
+⚠️ **Do not use a wallet that holds assets.**
 
-## 🚀 Running the Application
+---
 
-Run via Terminal (Use without creating EXE but need to keep VS Code open)
+## 🚀 Running the Application (Development)
 
-To start the app, use:
+Run directly from terminal:
 
-*dotnet build*
-*dotnet run*
+```bash
+dotnet build
+dotnet run
+```
 
-## Generate an Executable (.exe)
+---
 
-To create a Windows executable file:
+## 🛠️ Create Executables
 
-*dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true*
+### ▶️ For Windows:
 
-This will generate a standalone .exe file inside:
+```bash
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+```
 
+Result:
+
+```plaintext
 bin\Release\net8.0\win-x64\publish\NodeRunner.exe
+```
 
+---
 
-⚠️ Disclaimer
-This software is provided as-is, without any warranties or guarantees. By using this tool, you acknowledge and accept the following:
+<details>
+<summary>🐧 How to Run NodeRunner on Linux</summary>
 
-*This software is NOT made by, endorsed by, or affiliated with Hytopia.
-You are responsible for safeguarding your private keys. The developer assumes no responsibility for compromised or misused credentials.
-The tool is open-source and provided for educational purposes only.
-Use at your own risk. The developer is not liable for any losses or damages resulting from the use of this software.
-🛠️ Support & Contributions
-If you encounter any issues, please open a GitHub Issue.
-Contributions are welcome! Feel free to fork the repo and submit a pull request.*
+<br>
+
+### 📦 Requirements
+
+- .NET 6+ or 8+ SDK
+- `.sh` versions of `start`, `check`, and `claim` scripts
+
+---
+
+### 📁 Setup Example
+
+If you've created your `.sh` scripts, run:
+
+```bash
+chmod +x /path/to/your-scripts/start.sh
+chmod +x /path/to/your-scripts/check.sh
+chmod +x /path/to/your-scripts/claim.sh
+```
+
+---
+
+### 🧱 Build for Linux
+
+```bash
+dotnet publish -c Release -r linux-x64 --self-contained true
+```
+
+Navigate to the output folder:
+
+```bash
+cd bin/Release/net8.0/linux-x64/publish
+./NodeRunner
+```
+
+---
+
+### 🖱 In-App Setup
+
+Once NodeRunner is open:
+
+1. Click **"Select Scripts Folder"**
+2. Choose the folder with your `.sh` files
+3. Click **Run Nodes / Check / Claim**
+
+✅ NodeRunner will automatically detect Linux and run `.sh` instead of `.bat`.
+
+</details>
+
+---
+
+## 📄 Version History
+
+| Version | Highlights |
+|---------|------------|
+| `v1.0.4` | ✅ Linux/macOS support, auto `.sh` detection, cross-platform process killing |
+| `v1.0.3` | 🧠 Auto-restart on critical error, balance parsing, wallet info |
+| `v1.0.2` | 📊 Auto-updating pending balance, improved UI |
+| `v1.0.1` | 🛠 Initial stable Avalonia release |
+
+---
+
+## ⚠️ Legal Disclaimer
+
+This software is provided **as-is**, without any warranties or guarantees.  
+By using this tool, you agree to the following:
+
+- This is not official Hytopia software.
+- You are responsible for your private keys and credentials.
+- Use a separate wallet with no funds.
+- The developer is not responsible for loss, damage, or misconfiguration.
+- This is for educational and personal use only.
+
+---
+
+## 🙌 Support & Contributions
+
+- Encounter an issue? Open a GitHub [Issue](https://github.com/Eazyny/NodeRunner-1.0.0/issues)
+- Contributions welcome — fork the repo and submit a pull request!
