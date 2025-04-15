@@ -116,7 +116,7 @@ bin\Release\net8.0\win-x64\publish\NodeRunner.exe
 ---
 
 <details>
-<summary>🐧 How to Run NodeRunner on Linux</summary>
+<summary><strong>🐧 How to Run NodeRunner on Linux</strong></summary>
 
 <br>
 
@@ -129,7 +129,7 @@ bin\Release\net8.0\win-x64\publish\NodeRunner.exe
 
 ### 📁 Setup Example
 
-If you've created your `.sh` scripts, run:
+If you've created your `.sh` scripts, run to make then executable or else you will get a permission denied error:
 
 ```bash
 chmod +x /path/to/your-scripts/start.sh
