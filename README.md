@@ -129,7 +129,7 @@ bin\Release\net8.0\win-x64\publish\NodeRunner.exe
 
 ### 📁 Setup Example
 
-If you've created your `.sh` scripts, run to make then executable or else you will get a permission denied error:
+If you've created your `.sh` scripts, run the commands below to make them executable or else you will get a permission denied error:
 
 ```bash
 chmod +x /path/to/your-scripts/start.sh
