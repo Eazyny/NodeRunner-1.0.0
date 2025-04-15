@@ -6,6 +6,8 @@ using System;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.IO;
+using System.Runtime.InteropServices;
 
 namespace NodeRunner
 {
@@ -27,7 +29,6 @@ namespace NodeRunner
         public MainWindow()
         {
             InitializeComponent();
-            // Pass the UpdateWalletInfo delegate to ScriptService.
             _scriptService = new ScriptService(AppendToLog, UpdatePendingBalance, UpdateStatus, RestartHomeProcessAsync, UpdateWalletInfo);
         }
 
@@ -182,8 +183,6 @@ namespace NodeRunner
             private readonly Action<bool> _updateStatusAction;
             private readonly Func<Task> _restartHomeProcessAsync;
             private readonly Action<string, int> _updateWalletInfoAction;
-
-            // Flag to ensure only one restart is triggered per error.
             private bool _isRestarting = false;
 
             public bool IsHomeProcessRunning => _homeProcess != null && !_homeProcess.HasExited;
@@ -201,6 +200,21 @@ namespace NodeRunner
                 _restartHomeProcessAsync = restartHomeProcessAsync;
                 _updateWalletInfoAction = updateWalletInfoAction;
             }
+
+            private bool IsWindows() => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
+            private string GetScriptCommand(string scriptsFolderPath, string scriptFileName)
+            {
+                string scriptPath = Path.Combine(scriptsFolderPath, scriptFileName);
+                if (!IsWindows())
+                {
+                    scriptPath = Path.Combine(scriptsFolderPath, scriptFileName.Replace(".bat", ".sh"));
+                    return $"-c \"bash '{scriptPath}'\"";
+                }
+                return $"/c \"{scriptPath}\"";
+            }
+
+            private string GetShellExecutable() => IsWindows() ? "cmd.exe" : "/bin/bash";
 
             public async Task StartHomeProcessAsync(string scriptsFolderPath, string scriptFileName)
             {
@@ -225,7 +239,8 @@ namespace NodeRunner
                     {
                         await Task.Run(() =>
                         {
-                            KillProcessTree(_homeProcess);
+                            if (!_homeProcess.HasExited)
+                                _homeProcess.Kill(true);
                             _homeProcess.WaitForExit();
                         });
                         _homeProcess = null;
@@ -250,8 +265,8 @@ namespace NodeRunner
                     {
                         var processInfo = new ProcessStartInfo
                         {
-                            FileName = "cmd.exe",
-                            Arguments = $"/c \"{scriptsFolderPath}\\{scriptFileName}\"",
+                            FileName = GetShellExecutable(),
+                            Arguments = GetScriptCommand(scriptsFolderPath, scriptFileName),
                             WorkingDirectory = scriptsFolderPath,
                             CreateNoWindow = true,
                             UseShellExecute = false,
@@ -273,7 +288,7 @@ namespace NodeRunner
                                     if (match.Success)
                                     {
                                         var wallet = match.Groups[1].Value;
-                                        var last4 = wallet.Length >= 4 ? wallet.Substring(wallet.Length - 4) : wallet;
+                                        var last4 = wallet.Length >= 4 ? wallet[^4..] : wallet;
                                         int nodeCount = int.Parse(match.Groups[2].Value);
                                         _updateWalletInfoAction(last4, nodeCount);
                                         return;
@@ -285,7 +300,6 @@ namespace NodeRunner
                                 {
                                     _logAction("\nERROR: Critical error detected. Restarting nodes...");
                                     TriggerRestart();
-                                    return;
                                 }
                             }
                         };
@@ -317,21 +331,14 @@ namespace NodeRunner
                 }
             }
 
-            public void ResetPendingBalance()
-            {
-                _pendingBalance = 0M;
-            }
+            public void ResetPendingBalance() => _pendingBalance = 0M;
 
-            /// <summary>
-            /// Starts a long-running script (e.g. start.bat) with output filtering.
-            /// Does not wait for the process to exit.
-            /// </summary>
             private async Task<Process> StartLongRunningScriptAsync(string scriptsFolderPath, string scriptFileName)
             {
                 var processInfo = new ProcessStartInfo
                 {
-                    FileName = "cmd.exe",
-                    Arguments = $"/c \"{scriptsFolderPath}\\{scriptFileName}\"",
+                    FileName = GetShellExecutable(),
+                    Arguments = GetScriptCommand(scriptsFolderPath, scriptFileName),
                     WorkingDirectory = scriptsFolderPath,
                     CreateNoWindow = true,
                     UseShellExecute = false,
@@ -347,18 +354,19 @@ namespace NodeRunner
                     {
                         var cleanLog = CleanLog(args.Data);
                         if (cleanLog.Contains("Running guardian for owner") &&
-                           (cleanLog.Contains("delegated node keys") || cleanLog.Contains("owned node keys")))
+                            (cleanLog.Contains("delegated node keys") || cleanLog.Contains("owned node keys")))
                         {
                             var match = Regex.Match(cleanLog, @"owner \((0x[a-fA-F0-9]+)\) with (\d+) (?:delegated|owned) node keys");
                             if (match.Success)
                             {
                                 var wallet = match.Groups[1].Value;
-                                var last4 = wallet.Length >= 4 ? wallet.Substring(wallet.Length - 4) : wallet;
+                                var last4 = wallet.Length >= 4 ? wallet[^4..] : wallet;
                                 int nodeCount = int.Parse(match.Groups[2].Value);
                                 _updateWalletInfoAction(last4, nodeCount);
                                 return;
                             }
                         }
+
                         if (cleanLog.Contains("Sleeping for") && cleanLog.Contains("before running guardian again"))
                         {
                             ResetPendingBalance();
@@ -367,12 +375,13 @@ namespace NodeRunner
                                 await RunScriptAsync(scriptsFolderPath, "check.bat");
                             });
                         }
+
                         if (IsCriticalError(cleanLog))
                         {
                             _logAction("\nERROR: Critical error detected. Restarting nodes...");
                             TriggerRestart();
-                            return;
                         }
+
                         _logAction(cleanLog);
                     }
                 };
@@ -399,33 +408,6 @@ namespace NodeRunner
                 return process;
             }
 
-            private async Task<Process> StartScriptAsync(string scriptsFolderPath, string scriptFileName)
-            {
-                var processInfo = new ProcessStartInfo
-                {
-                    FileName = "cmd.exe",
-                    Arguments = $"/c \"{scriptsFolderPath}\\{scriptFileName}\"",
-                    WorkingDirectory = scriptsFolderPath,
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                };
-
-                var process = new Process { StartInfo = processInfo };
-
-                process.OutputDataReceived += (sender, args) => _logAction(CleanLog(args.Data));
-                process.ErrorDataReceived += (sender, args) => _logAction("\nERROR: " + CleanLog(args.Data));
-
-                process.Start();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-
-                await Task.Delay(500);
-                return process;
-            }
-
-            // Parses balance output and updates the pending balance.
             private void UpdatePendingBalance(string output)
             {
                 var match = Regex.Match(output, @"Rewards to claim for NodeKey \(\d+\): (\d+)");
@@ -450,7 +432,7 @@ namespace NodeRunner
                 if (string.IsNullOrWhiteSpace(logMessage))
                     return string.Empty;
 
-                if (Regex.IsMatch(logMessage, @"^C:\\")) 
+                if (Regex.IsMatch(logMessage, @"^C:\\"))
                     return string.Empty;
 
                 logMessage = Regex.Replace(logMessage, @"\[\d{2}:\d{2}:\d{2}\.\d{3}\]", match =>
@@ -466,33 +448,17 @@ namespace NodeRunner
                 if (!_isRestarting)
                 {
                     _isRestarting = true;
-                    // Immediately stop nodes.
                     if (_homeProcess != null && !_homeProcess.HasExited)
                     {
-                        KillProcessTree(_homeProcess);
+                        _homeProcess.Kill(true);
                     }
-                    // Trigger restart asynchronously.
+
                     Task.Run(async () =>
                     {
                         await _restartHomeProcessAsync();
                         _isRestarting = false;
                     });
                 }
-            }
-
-            private static void KillProcessTree(Process process)
-            {
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "taskkill",
-                    Arguments = $"/T /F /PID {process.Id}",
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                };
-
-                using var killProcess = new Process { StartInfo = startInfo };
-                killProcess.Start();
-                killProcess.WaitForExit();
             }
         }
     }
